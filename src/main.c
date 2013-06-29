@@ -537,7 +537,7 @@ static int transform_and_check
  const uint8_t* z, const uint8_t* zm
 )
 {
-  static const size_t block_count = 3;
+  static const size_t block_count = 4;
   uint8_t trans_p[block_size * block_count];
   uint8_t trans_pm[block_size * block_count];
   size_t count;
@@ -547,7 +547,7 @@ static int transform_and_check
 
   count = 0;
 
-  for (i = 2 * block_size; i < sizeof(trans_p); ++i)
+  for (i = 3 * block_size; i < sizeof(trans_p); ++i)
   {
     if (pm[i] == 0) continue ;
     if (trans_pm[i] == 0) continue ;
@@ -1042,7 +1042,7 @@ int main(int ac, char** av)
     pm[i] = ((map_mf.base[i] == '$') ? 0 : 1);
 
   /* limit to 7 blocks, because of dot map not fully done */
-  n = 2 * block_size;
+  n = 3 * block_size;
   if (n > plain_mf.size) n = plain_mf.size;
 
 #if 0 /* debug */
