@@ -674,7 +674,7 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
     printf("best_n == %u\n", a->best_n);
   }
 
-  if (solve_n > 230)
+  if (solve_n > 210)
   {
     /* no more hypothesis to make */
 
