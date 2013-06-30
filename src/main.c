@@ -1098,7 +1098,19 @@ int main(int ac, char** av)
   /* translate the map from dollar based to 0 or 1 */
   pm = malloc(plain_mf.size);
   for (i = 0; i < plain_mf.size; ++i)
-    pm[i] = ((map_mf.base[i] == '$') ? 0 : 1);
+  {
+    uint8_t x = 1;
+    if (map_mf.base[i] == '$')
+    {
+      x = 0;
+    }
+    else
+    {
+      const uint8_t c = plain_mf.base[i];
+      if ((c == '\n') || (c == '\t')) x = 0;
+    }
+    pm[i] = x;
+  }
 
   /* limit to 7 blocks, because of dot map not fully done */
   n = BLOCK_COUNT * block_size;
