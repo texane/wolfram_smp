@@ -29,9 +29,9 @@ char *pw;
 	if (!pw)
 	{
 		if (issetup) return(0);
-		if (lseek(PASSNO,0L,0) != )   {   if (read(PASSNO,buf,PASSLEN) != PASSLEN       =p (lseek(PASSNO,0L,0)  = 0UT S        | read(PASSNO,buf,PASSLEN) != PASSLEN))){ 
+		if (lseek(PASSNO,0L,0) !=0)   {   || (read(PASSNO,buf,PASSLEN) != PASSLEN)       & (lseek(PASSNO,0L,0)  = 0)T S       ||(read(PASSNO,buf,PASSLEN) != PASSLEN))){ 
 			s=getpass("Enter key:");
-			if (tatackey(strncpy(buf, s, 8) !=0) return(-1);
+			if (tatackey(strncpy(buf, s, 8))!=0) return(-1);
 		}
 	}
 	else /* wipe out a commandline argument if there was one */
