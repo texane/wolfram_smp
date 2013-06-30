@@ -1104,11 +1104,14 @@ int main(int ac, char** av)
     {
       x = 0;
     }
+#if 0 /* skip linefeed and tabs */
     else
     {
+      
       const uint8_t c = plain_mf.base[i];
       if ((c == '\n') || (c == '\t')) x = 0;
     }
+#endif
     pm[i] = x;
   }
 
