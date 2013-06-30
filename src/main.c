@@ -114,7 +114,8 @@ static void check_a
 static void compute_a
 (
  uint8_t* a, uint8_t* am,
- const uint8_t* c, const uint8_t* p, const uint8_t* pm
+ const uint8_t* c, const uint8_t* p, const uint8_t* pm,
+ size_t block_count
 )
 {
   /* recover a from a given cryptoblock */
@@ -129,22 +130,33 @@ static void compute_a
   /* a[ci + i] = pi + i; */
   /* a[pi + i] = ci + i; */
 
+  size_t j;
   size_t i;
 
-  memset(am, 0, block_size);
-
-  for (i = 0; i < block_size; ++i)
+  for (j = 0; j < block_count; ++j)
   {
-    if (pm[i] == 0) continue ;
+    memset(am, 0, block_size);
 
-    const uint8_t ipi = mod((int)i + (int)p[i]);
-    const uint8_t ici = mod((int)i + (int)c[i]);
+    for (i = 0; i < block_size; ++i)
+    {
+      if (pm[i] == 0) continue ;
 
-    am[ipi] = 1;
-    am[ici] = 1;
+      const uint8_t ipi = mod((int)i + (int)p[i]);
+      const uint8_t ici = mod((int)i + (int)c[i]);
 
-    a[ipi] = ici;
-    a[ici] = ipi;
+      am[ipi] = 1;
+      am[ici] = 1;
+
+      a[ipi] = ici;
+      a[ici] = ipi;
+    }
+
+    /* advance so that j is dropped */
+    a += block_size;
+    am += block_size;
+    p += block_size;
+    pm += block_size;
+    c += block_size;
   }
 }
 
@@ -214,6 +226,23 @@ static void unprop_az
   {
     size_t aji;
     stack_pop(zstack, &aji);
+
+#if 1 /* debug */
+    if (zim[z[aji]] == 0)
+    {
+      printf("error popping zi[%u]\n", z[aji]);
+      exit(-1);
+    }
+#endif
+
+#if 1 /* debug */
+    if (zm[aji] == 0)
+    {
+      printf("error popping z[%u]\n", aji);
+      exit(-1);
+    }
+#endif
+
     zim[z[aji]] = 0;
     zm[aji] = 0;
   }
@@ -222,6 +251,15 @@ static void unprop_az
   {
     size_t jzi;
     stack_pop(astack, &jzi);
+
+#if 1 /* debug */
+    if (am[jzi] == 0)
+    {
+      printf("error popping a[%u]\n", jzi);
+      exit(-1);
+    }
+#endif
+
     am[jzi] = 0;
   }
 }
@@ -261,8 +299,10 @@ static size_t prop_az
       const size_t aji = a[ji];
 
       /* both unknwon */
-      if ((am[jzi] == 0) && (zm[aji] == 0)) continue ;
-
+      if ((am[jzi] == 0) && (zm[aji] == 0))
+      {
+	continue ;
+      }
       if ((am[jzi] == 1) && (zm[aji] == 1))
       {
 	/* both known, check validity */
@@ -270,6 +310,18 @@ static size_t prop_az
       }
       else if (zm[aji] == 0)
       {
+#if 1 /* debug */
+	if (zim[a[jzi]] == 1)
+	{
+	  if (zi[a[jzi]] != aji)
+	  {
+	    return (size_t)-1;
+	    printf("error %u (%u)\n", __LINE__, zi[a[jzi]]);
+	    exit(-1);
+	  }
+	}
+#endif
+
 	/* z[aj+1[i]] unknown */
 	z[aji] = a[jzi];
 	zm[aji] = 1;
@@ -281,6 +333,8 @@ static size_t prop_az
       }
       else if (am[jzi] == 0)
       {
+	/* must hold: z[aj+1[i]] = aj[z[i]] */
+
 	/* aj[z[i]] unknown */
 	a[jzi] = z[aji];
 	am[jzi] = 1;
@@ -537,7 +591,7 @@ static int transform_and_check
  const uint8_t* z, const uint8_t* zm
 )
 {
-  static const size_t block_count = 4;
+  static const size_t block_count = 3;
   uint8_t trans_p[block_size * block_count];
   uint8_t trans_pm[block_size * block_count];
   size_t count;
@@ -770,7 +824,6 @@ static size_t solve_z
   memset(arg.best_zim, 0, block_size);
 
   solve_z_rec(&arg, 0, 0);
-  printf("solve_z_rec == %u\n", arg.best_n);
 
   memcpy(az, arg.best_az, block_size);
   memcpy(azm, arg.best_azm, block_size);
@@ -779,7 +832,21 @@ static size_t solve_z
   memcpy(zi, arg.best_zi, block_size);
   memcpy(zim, arg.best_zim, block_size);
 
-  return n;
+  /* stats */
+  size_t naz = 0;
+  size_t nz = 0;
+  size_t nzi = 0;
+  size_t i;
+  for (i = 0; i < block_size; ++i)
+  {
+    if (azm[i]) ++naz;
+    if (zm[i]) ++nz;
+    if (zim[i]) ++nzi;
+  }
+  printf("solve_z_rec: best_n == %u, naz == %u, nz == %u, nzi == %u\n",
+	 arg.best_n, naz, nz, nzi);
+
+  return arg.best_n;
 }
 
 static void recover_key
@@ -820,19 +887,7 @@ static void recover_key
 
   a = malloc(block_count * block_size);
   am = malloc(block_count * block_size);
-
-  for (j = 0; j < block_count; ++j)
-  {
-    const size_t k = make_index(j, 0);
-    compute_a(a + k, am + k, c + k, p + k, pm + k);
-
-#if 0
-    count = 0;
-    for (i = 0; i < block_size; ++i) count += am[j * block_size + i];
-    printf("a_%u == %u\n", j, count);
-#endif
-  }
-
+  compute_a(a, am, c, p, pm, block_count);
   check_a(a, am, c, p, pm, n);
 
   /* allocate transformed buffers */
@@ -840,10 +895,9 @@ static void recover_key
   trans_p = malloc(n);
 
   /* solve z */
-  total_count = solve_z(c, p, pm, a, am, az, azm, block_count, z, zm, zi, zim);
+  solve_z(c, p, pm, a, am, az, azm, block_count, z, zm, zi, zim);
 
 #if 1
-  printf("total_count: %u\n", total_count);
   for (j = 0; j < block_size; ++j)
   {
     if (j && (j % 8 == 0)) printf("\n");
@@ -1042,7 +1096,7 @@ int main(int ac, char** av)
     pm[i] = ((map_mf.base[i] == '$') ? 0 : 1);
 
   /* limit to 7 blocks, because of dot map not fully done */
-  n = 3 * block_size;
+  n = 2 * block_size;
   if (n > plain_mf.size) n = plain_mf.size;
 
 #if 0 /* debug */
