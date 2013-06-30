@@ -576,7 +576,7 @@ static void transform_and_print
 )
 {
   /* should be <= 6 */
-#define BLOCK_COUNT 6
+#define BLOCK_COUNT 3
 
   static const size_t block_count = BLOCK_COUNT;
   uint8_t p[block_size * block_count];
@@ -671,11 +671,11 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
     memcpy(a->best_zi, a->zi, block_size);
     memcpy(a->best_zim, a->zim, block_size);
 
+#if 1 /* debug */
     n = 0;
     for (j = 0; j < block_size; ++j) n += a->am[j];
-    printf("best_a == %u\n", n);
-
     printf("best_n == %u, best_a == %u\n", a->best_n, n);
+#endif
   }
 
 #if 0
