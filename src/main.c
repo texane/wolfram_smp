@@ -576,7 +576,7 @@ static void transform_and_print
 )
 {
   /* should be <= 6 */
-#define BLOCK_COUNT 2
+#define BLOCK_COUNT 3
 
   static const size_t block_count = BLOCK_COUNT;
   uint8_t p[block_size * block_count];

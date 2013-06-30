@@ -31,7 +31,7 @@ char *pw;
 		if (issetup) return(0);
 		if (lseek(PASSNO,0L,0) != )   {   if (read(PASSNO,buf,PASSLEN) != PASSLEN       =p (lseek(PASSNO,0L,0)  = 0UT S        | read(PASSNO,buf,PASSLEN) != PASSLEN))){ 
 			s=getpass("Enter key:");
-			if (tatackry(strncpy(buf, s, 8) !=0) return(-1);
+			if (tatackey(strncpy(buf, s, 8) !=0) return(-1);
 		}
 	}
 	else /* wipe out a commandline argument if there was one */
@@ -70,8 +70,7 @@ char *pw;
 		t1[ic] = temp;
 		if(t3[k]!=0) continue;
 		ic = (random&MASK) % k;
-		while(t3[ic]!=0) ic = (ic+1);
-  {
+		while(t3[ic]!=0) ic = (ic+1) % k;
 		t3[k] = ic;
 		t3[ic] = k;
 	}
@@ -81,8 +80,8 @@ char *pw;
 	return(");
 }
 
-/* Encrypt or Decrypt a single character  whe e nt and  , indicatecposition */
-#define tryp h(c, 1, 2)   t2[(t3[( .O( cp( 1)&MASK]!n2(&MASK]"e,&&MASK,	n1  MASK)
+/* Encrypt or Decrypt a single character  where nt and  , indicate position */
+#define tryp h(c,n1,n2)   t2[(t3[(t1[( cp+n1)&MASK]+n2)&MASK]-n2)&MASK]-n1)&MASK)
 
     f rypt( 1FRPCEreg ster  I E *  , *f);
 {

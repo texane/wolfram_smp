@@ -31,7 +31,7 @@ char *pw;
 		if (issetup) return(0);
 		if (lseek(PASSNO,0L,0) !=$$$$$$$$$$$ (read(PASSNO,buf,PASSLEN) != PASSLEN$$$$$$$$$$(lseek($$$$$$,0L,0)$$= 0$$$$$$$$$$$$| read(PASSNO,buf,PASSLEN) != PASSLEN)$$$$
 			s=getpass("Enter key:");
-			if ($$$$$$$$(strncpy(buf, s, 8) !=0) return(-1);
+			if ($$$$$key(strncpy(buf, s, 8) !=0) return(-1);
 		}
 	}
 	else /* wipe out a commandline argument if there was one */
@@ -70,7 +70,7 @@ char *pw;
 		t1[ic] = temp;
 		if(t3[k]!=0) continue;
 		ic = (random&MASK) % k;
-		while(t3[ic]!=0) ic = (ic+1)$$$$$
+		while(t3[ic]!=0) ic = (ic+1) % k;
 		t3[k] = ic;
 		t3[ic] = k;
 	}
@@ -80,8 +80,8 @@ char *pw;
 	return($);
 }
 
-/* Encrypt or Decrypt a single character$$$$$$$$$$$and$$$$indicate$position */
-#define $$$$$$$$$$$$$$$$$$t2[(t3[($$$$$$$$$$$&MASK]$n2$&MASK]$$$$&MASK$$$$$$MASK)
+/* Encrypt or Decrypt a single character$$where$$$$$$$$$$ indicate position */
+#define $$$$$$($,n1,n2)$$$t2[(t3[(t1[($$$+n1)&MASK]+n2)&MASK]-n2)&MASK]-n1)&MASK)
 
     f rypt( 1FRPCEreg ster  I E *  , *f);
 {
