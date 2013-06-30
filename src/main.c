@@ -605,7 +605,7 @@ static int transform_and_check
 
   count = 0;
 
-  for (i = 3 * block_size; i < sizeof(trans_p); ++i)
+  for (i = (block_count - 1) * block_size; i < sizeof(trans_p); ++i)
   {
     if (pm[i] == 0) continue ;
     if (trans_pm[i] == 0) continue ;
