@@ -576,7 +576,7 @@ static void transform_and_print
 )
 {
   /* should be <= 6 */
-#define BLOCK_COUNT 2
+#define BLOCK_COUNT 4
 
   static const size_t block_count = BLOCK_COUNT;
   uint8_t p[block_size * block_count];
@@ -591,31 +591,60 @@ static void transform_and_print
   printf("\n");
 }
 
-static int transform_and_check
+static size_t transform_and_count
 (
  const uint8_t* c, const uint8_t* p, const uint8_t* pm,
  const uint8_t* a, const uint8_t* am,
- const uint8_t* z, const uint8_t* zm
+ const uint8_t* z, const uint8_t* zm,
+ const uint8_t* zi, const uint8_t* zim
 )
 {
-  static const size_t block_count = BLOCK_COUNT + 1;
-  uint8_t trans_p[block_size * block_count];
-  uint8_t trans_pm[block_size * block_count];
-  size_t count;
+  /* given: c_j, a_j, z, z^-1 */
+  /* compute: p_j+1 */
+  /* return: sum(p_j+1 = actual_j+1) */
+
+  /* j+1 is BLOCK_COUNT, the first known but unused block */
+  static const size_t j = BLOCK_COUNT - 1;
+
+  /* compute: aj+1[i] = z^-1[aj[z[i]]] */
+
+  uint8_t aj1[block_size];
+  uint8_t aj1m[block_size];
+
   size_t i;
 
-  transform2(trans_p, trans_pm, c, block_size * block_count, a, am, z, zm);
-
-  count = 0;
-
-  for (i = BLOCK_COUNT * block_size; i < sizeof(trans_p); ++i)
+  for (i = 0; i < block_size; ++i)
   {
-    if (pm[i] == 0) continue ;
-    if (trans_pm[i] == 0) continue ;
-    if (p[i] == trans_p[i]) ++count;
+    aj1m[i] = 0;
+
+    if (zm[i] == 0) continue ;
+
+    const size_t jzi = make_index(j, z[i]);
+    if (am[jzi] == 0) continue ;
+
+    if (zim[a[jzi]] == 0) continue ;
+
+    aj1[i] = zi[a[jzi]];
+    aj1m[i] = 1;
   }
 
-  return count >= 32 ? 0 : -1;
+  /* compute: p_ij = aj[cij + i] - i */
+
+  size_t count = 0;
+
+  for (i = 0; i < block_size; ++i)
+  {
+    const size_t ij = make_index(j + 1, i);
+
+    if (pm[ij] == 0) continue ;
+
+    if (aj1m[mod((int)c[ij] + (int)i)] == 0) continue ;
+
+    const uint8_t x = mod((int)aj1[mod((int)c[ij] + (int)i)] - (int)i);
+    if (x == p[ij]) ++count;
+  }
+
+  return count;
 }
 
 typedef struct solve_arg
@@ -683,7 +712,10 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
   {
     /* no more hypothesis to make */
 
-    if (transform_and_check(a->c, a->p, a->pm, a->a, a->am, a->z, a->zm) == 0)
+    const size_t count = transform_and_count
+      (a->c, a->p, a->pm, a->a, a->am, a->z, a->zm, a->zi, a->zim);
+
+    if (count >= 8)
     {
       printf("FOUND\n");
       transform_and_print(a->c, a->a, a->am, a->z, a->zm);
