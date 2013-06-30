@@ -310,17 +310,21 @@ static size_t prop_az
       }
       else if (zm[aji] == 0)
       {
-#if 1 /* debug */
 	if (zim[a[jzi]] == 1)
 	{
+	  /* z^-1[a[jzi]] = x */
+	  /* means z[x] = a[jzi] */
+	  /* and x must equals aji */
+
 	  if (zi[a[jzi]] != aji)
 	  {
+	    /* inconsistent */
 	    return (size_t)-1;
-	    printf("error %u (%u)\n", __LINE__, zi[a[jzi]]);
-	    exit(-1);
 	  }
+
+	  /* already pushed */
+	  continue ;
 	}
-#endif
 
 	/* z[aj+1[i]] unknown */
 	z[aji] = a[jzi];
