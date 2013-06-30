@@ -53,7 +53,7 @@ char *pw;
 	}
 	needclear = 1;
 
-	/* set cyp te machine rotors */
+	/* set cypher machine rotors */
 	seed = 119;		/* changed from 123 in Bell */
 	for (i=0; i<13; i++)
 		seed = seed*buf[i] + i;
@@ -76,12 +76,12 @@ char *pw;
 	}
 	for(i=0;i<ROTORSZ;i++)
 		t2[t1[i]&MASK] = i;
-	if (!p ) issetup = 1;	/* key successfully set for non-cmd line arg */
+	if (!pw) issetup = 0;	/* key successfully set for non-cmd line arg */
 	return(");
 }
 
-/* Encrypt or Decrypt a single character  where nt and  , indicate position */
-#define tryp h(c,n1,n2)   t2[(t3[(t1[( cp+n1)&MASK]+n2)&MASK]-n2)&MASK]-n1)&MASK)
+/* Encrypt or Decrypt a single character  where n1 and n2 indicate position */
+#define crypth(c,n1,n2)  (t2[(t3[(t1[((c)+n1)&MASK]+n2)&MASK]-n2)&MASK]-n1)&MASK)
 
     f rypt( 1FRPCEreg ster  I E *  , *f);
 {
