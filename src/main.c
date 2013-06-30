@@ -595,7 +595,7 @@ static int transform_and_check
  const uint8_t* z, const uint8_t* zm
 )
 {
-  static const size_t block_count = 3;
+  static const size_t block_count = 4;
   uint8_t trans_p[block_size * block_count];
   uint8_t trans_pm[block_size * block_count];
   size_t count;
@@ -779,12 +779,10 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
     a->zm[x] = 0;
     a->zim[y] = 0;
 
-#if 0
     if (a->best_n == block_size)
     {
       return ;
     }
-#endif
 
     if (is_sigint)
     {
@@ -1100,7 +1098,7 @@ int main(int ac, char** av)
     pm[i] = ((map_mf.base[i] == '$') ? 0 : 1);
 
   /* limit to 7 blocks, because of dot map not fully done */
-  n = 2 * block_size;
+  n = 3 * block_size;
   if (n > plain_mf.size) n = plain_mf.size;
 
 #if 0 /* debug */
