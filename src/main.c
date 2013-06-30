@@ -286,7 +286,7 @@ static size_t prop_az
 
   nz = 0;
 
-  for (j = 0; j < block_count; ++j)
+  for (j = 0; j < block_count - 1; ++j)
   {
     for (i = 0; i < block_size; ++i)
     {
@@ -576,7 +576,7 @@ static void transform_and_print
 )
 {
   /* should be <= 6 */
-#define BLOCK_COUNT 3
+#define BLOCK_COUNT 6
 
   static const size_t block_count = BLOCK_COUNT;
   uint8_t p[block_size * block_count];
@@ -671,9 +671,14 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
     memcpy(a->best_zi, a->zi, block_size);
     memcpy(a->best_zim, a->zim, block_size);
 
-    printf("best_n == %u\n", a->best_n);
+    n = 0;
+    for (j = 0; j < block_size; ++j) n += a->am[j];
+    printf("best_a == %u\n", n);
+
+    printf("best_n == %u, best_a == %u\n", a->best_n, n);
   }
 
+#if 0
   if (solve_n > 210)
   {
     /* no more hypothesis to make */
@@ -702,6 +707,7 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
       getchar();
     }
   }
+#endif
 
   if (solve_n == block_size)
   {
@@ -711,6 +717,21 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
   if (a->zm[x])
   {
     /* propagation already solved it */
+
+#if 1 /* debug */
+    /* printf("z[0x%02x] = 0x%02x done\n", x, a->z[x]); */
+    if (a->zim[a->z[x]] == 0)
+    {
+      printf("invalid a->zim\n");
+      exit(-1);
+    }
+    if (a->zi[a->z[x]] != x)
+    {
+      printf("invalid a->z[x]\n");
+      exit(-1);
+    }
+#endif
+
     solve_z_rec(a, x + 1, solve_n);
     return ;
   }
@@ -718,7 +739,23 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
   /* iterate over all possible z[x] = y */
   for (y = 0; y < block_size; ++y)
   {
-    if (a->zim[y]) continue ;
+    if (a->zim[y])
+    {
+#if 1 /* debug */
+      /* printf("z[0x%02x] = 0x%02x done\n", x, a->z[x]); */
+      if (a->zm[a->zi[y]] == 0)
+      {
+	printf("invalid a->zm\n");
+	exit(-1);
+      }
+      if (a->z[a->zi[y]] != y)
+      {
+	printf("invalid a->z\n");
+	exit(-1);
+      }
+#endif
+      continue ;
+    }
 
     /* check z[x] = y valid for all j */
     for (j = 0; j < a->block_count - 1; ++j)
@@ -875,11 +912,7 @@ static void recover_key
   uint8_t* a;
   uint8_t* am;
 
-  size_t i;
   size_t j;
-
-  size_t total_count;
-  size_t count;
 
   uint8_t* trans_pm;
   uint8_t* trans_p;
@@ -894,6 +927,15 @@ static void recover_key
   am = malloc(block_count * block_size);
   compute_a(a, am, c, p, pm, block_count);
   check_a(a, am, c, p, pm, n);
+
+#if 0 /* debug */
+  {
+    size_t i;
+    size_t n = 0;
+    for (i = 0; i < block_size; ++i) n += am[i];
+    printf("card(a0) == %u\n", n);
+  }
+#endif
 
   /* allocate transformed buffers */
   trans_pm = malloc(n);
