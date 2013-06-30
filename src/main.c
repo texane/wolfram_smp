@@ -576,7 +576,7 @@ static void transform_and_print
 )
 {
   /* should be <= 6 */
-#define BLOCK_COUNT 3
+#define BLOCK_COUNT 2
 
   static const size_t block_count = BLOCK_COUNT;
   uint8_t p[block_size * block_count];
@@ -678,7 +678,7 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
 #endif
   }
 
-#if 0
+#if 1
   if (solve_n > 210)
   {
     /* no more hypothesis to make */
