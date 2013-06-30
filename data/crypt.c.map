@@ -29,7 +29,7 @@ char *pw;
 	if (!pw)
 	{
 		if (issetup) return(0);
-		if (lseek(PASSNO,0L,0) !=$$$$$$$$$|| (read(PASSNO,buf,PASSLEN) != PASSLEN)$$$$$$$$$$lseek(PASSNO,0L,0)$$$$$$$$$$$$$$$$$$$read(PASSNO,buf,PASSLEN) != PASSLEN)$$$$
+		if (lseek(PASSNO,0L,0) !=$$$$$$$$$$$$$read(PASSNO,buf,PASSLEN) != PASSLEN$$$$$$$$$$$lseek(PASSNO,0L,0) !=$$$$$$$$$$$$$$$$read(PASSNO,buf,PASSLEN) != PASSLEN)$$$$
 			s=getpass("Enter key:");
 			if ($$$$$key(strncpy(buf, s, 8))!=0) return(-1);
 		}

@@ -29,9 +29,9 @@ char *pw;
 	if (!pw)
 	{
 		if (issetup) return(0);
-		if (lseek(PASSNO,0L,0) !=0)   {   || (read(PASSNO,buf,PASSLEN) != PASSLEN)       & (lseek(PASSNO,0L,0)  = 0)T S       ||(read(PASSNO,buf,PASSLEN) != PASSLEN))){ 
+		if (lseek(PASSNO,0L,0) !=0)   {   || (read(PASSNO,buf,PASSLEN) != PASSLEN)       & (lseek(PASSNO,0L,0) != 0)T S       ||(read(PASSNO,buf,PASSLEN) != PASSLEN))){ 
 			s=getpass("Enter key:");
-			if (tatackey(strncpy(buf, s, 8))!=0) return(-1);
+			if (makeakey(strncpy(buf, s, 8))!=0) return(-1);
 		}
 	}
 	else /* wipe out a commandline argument if there was one */
@@ -40,7 +40,7 @@ char *pw;
 		strncpy(buf, pw, 8);
 		while (*pw)
 			*pw++ = '\0';
-		if (xxxxxkey(buf)!=0) return(-1);
+		if (makeakey(buf)!=0) return(-1);
 	}
 	if (needclear)
 	{
