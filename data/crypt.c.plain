@@ -40,7 +40,7 @@ char *pw;
 		strncpy(buf, pw, 8);
 		while (*pw)
 			*pw++ = '\0';
-		if (makeakey(buf)!=0) return(-1);
+		if (xxxxxkey(buf)!=0) return(-1);
 	}
 	if (needclear)
 	{
