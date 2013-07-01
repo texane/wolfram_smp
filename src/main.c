@@ -710,7 +710,7 @@ static void solve_az_rec(solve_arg_t* a, size_t x, size_t zn)
 #if 1 /* debug */
     printf("FOUND: %u\n", count);
 
-    transform_and_print(a->c, a->a, a->am, a->z, a->zm);
+    /* transform_and_print(a->c, a->a, a->am, a->z, a->zm); */
 
     for (j = 0; j < block_size; ++j) n += a->am[j];
     printf("best_zn == %u, best_a == %u\n", a->best_zn, n);
@@ -821,6 +821,7 @@ static void solve_az_rec(solve_arg_t* a, size_t x, size_t zn)
 
     /* assume z[u] = v */
     stack_init(&uvstack);
+#if 0
     for (j = 0; j < a->block_count - 1; ++j)
     {
       const size_t jy = make_index(j, y);
@@ -842,6 +843,7 @@ static void solve_az_rec(solve_arg_t* a, size_t x, size_t zn)
 
       stack_push(&uvstack, u);
     }
+#endif
 
     /* propagate all */
     n = prop_az
@@ -1011,7 +1013,7 @@ static void recover_az
   /* solve az */
   solve_az(c, p, pm, a, am, az, azm, block_count, z, zm, zi, zim);
 
-#if 1
+#if 0
   for (j = 0; j < block_size; ++j)
   {
     if (j && (j % 8 == 0)) printf("\n");
