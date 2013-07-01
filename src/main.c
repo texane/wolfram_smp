@@ -1008,6 +1008,22 @@ static void recover_az
   /* solve az */
   solve_az(c, p, pm, a, am, az, azm, block_count, z, zm, zi, zim);
 
+  /* fill missing z with unused values */
+  size_t i;
+  for (x = 0, i = 0; i < block_size; ++i)
+  {
+    if (zm[i] == 0)
+    {
+      for (; zim[x]; ++x) ;
+
+      z[i] = x;
+      zm[i] = 1;
+      zi[x] = i;
+      zim[x] = 1;
+      ++x;
+    }
+  }
+
 #if 0
   for (j = 0; j < block_size; ++j)
   {
@@ -1066,7 +1082,7 @@ static int solve_r_rec(solve_r_t* s, size_t i)
     if (s->rim[x]) continue ;
 
     /* invalid */
-    if (s->r[i] != mod((int)x - k)) continue ;
+    if (s->rm[i] && (s->r[i] != mod((int)x - k))) continue ;
 
     /* suppose r[z[i]] = x */
     s->r[s->z[i]] = x;
@@ -1078,7 +1094,7 @@ static int solve_r_rec(solve_r_t* s, size_t i)
     if (solve_r_rec(s, i + 1) == 0) return 0;
 
     s->rm[s->z[i]] = 0;
-    s->rim[x] = 1;
+    s->rim[x] = 0;
   }
 
   /* could not solve */
@@ -1098,12 +1114,12 @@ static int solve_r
   s.zm = zm;
   s.zi = zi;
   s.zim = zim;
-  s.r = r;
 
-  memset(s.rm, 0, sizeof(s.rm));
+  s.r = r;
+  memset(s.rm, 0, block_size);
+
   s.ri = ri;
-  memset(s.ri, 0, sizeof(s.ri));
-  memset(s.rim, 0, sizeof(s.rim));
+  memset(s.rim, 0, block_size);
 
   return solve_r_rec(&s, 0);
 }
@@ -1116,7 +1132,9 @@ static void solve_s
  uint8_t* s
 )
 {
-  /* assume r known */
+  /* s[i] = r[aj[ri[i]]] */
+
+  /* assume r, ri known */
 
   size_t i;
   size_t j;
@@ -1131,9 +1149,10 @@ static void solve_s
     {
       if (sm[i]) continue ;
 
-      const size_t jri = make_index(j, ri[i]);
-      if (am[jri] == 0) continue ;
-      sm[i] = r[a[jri]];
+      const size_t jrii = make_index(j, ri[i]);
+      if (am[jrii] == 0) continue ;
+      s[i] = r[a[jrii]];
+      sm[i] = 1;
     }
   }
 }
@@ -1380,7 +1399,7 @@ int main(int ac, char** av)
   /* recover a, z */
   recover_az(cipher_mf.base, plain_mf.base, pm, n, a, am, z, zm, zi, zim);
 
-#if 0 /* use r,s */
+#if 1 /* use r,s */
   solve_r(z, zm, zi, zim, r, ri);
   solve_s(a, am, n / block_size, r, ri, s);
   transform_rs(p, pm, cipher_mf.base, cipher_mf.size, r, ri, s);
