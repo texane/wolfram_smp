@@ -576,7 +576,7 @@ static void transform_and_print
 )
 {
   /* should be <= 6 */
-#define BLOCK_COUNT 3
+#define BLOCK_COUNT 5
 
   static const size_t block_count = BLOCK_COUNT;
   uint8_t p[block_size * block_count];
@@ -716,11 +716,12 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
     const size_t count = transform_and_count
       (a->c, a->p, a->pm, a->a, a->am, a->z, a->zm, a->zi, a->zim);
 
-    if (count >= 8)
+    if (count >= 32)
     {
-      printf("FOUND\n");
+      printf("FOUND: %u\n", count);
       transform_and_print(a->c, a->a, a->am, a->z, a->zm);
 
+      printf("a == \n");
       for (j = 0; j < block_size; ++j)
       {
 	if (j && (j % 8 == 0)) printf("\n");
@@ -729,6 +730,7 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
       }
       printf("\n");
 
+      printf("z == \n");
       for (j = 0; j < block_size; ++j)
       {
 	if (j && (j % 8 == 0)) printf("\n");
