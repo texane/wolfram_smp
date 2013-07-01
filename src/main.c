@@ -576,7 +576,7 @@ static void transform_and_print
 )
 {
   /* should be <= 6 */
-#define BLOCK_COUNT 4
+#define BLOCK_COUNT 3
 
   static const size_t block_count = BLOCK_COUNT;
   uint8_t p[block_size * block_count];
@@ -686,6 +686,7 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
 
   stack_t astack;
   stack_t zstack;
+  stack_t uvstack;
 
   if (solve_n > a->best_n)
   {
@@ -801,10 +802,17 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
       const uint8_t v = a->a[jy];
       const uint8_t u = a->a[jx];
 
-      if (a->zm[u] == 0) continue ;
+      if ((a->zim[v] == 1) && (a->zi[v] != u))
+      {
+	/* invalid, would mean z[u] != v */
+	break ;
+      }
 
-      /* invalid hypothesis */
-      if (a->z[u] != v) break ;
+      if ((a->zm[u] == 1) && (a->z[u] != v))
+      {
+	/* invalid hypothesis */
+	break ;
+      }
     }
 
     /* invalid hypothesis, next y */
@@ -815,6 +823,30 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
     a->zm[x] = 1;
     a->zi[y] = x;
     a->zim[y] = 1;
+
+    /* assume z[u] = v */
+    stack_init(&uvstack);
+    for (j = 0; j < a->block_count - 1; ++j)
+    {
+      const size_t jy = make_index(j, y);
+      const size_t jx = make_index(j + 1, x);
+
+      if (a->am[jy] == 0) continue ;
+      if (a->am[jx] == 0) continue ;
+
+      const uint8_t v = a->a[jy];
+      const uint8_t u = a->a[jx];
+
+      if (a->zm[u]) continue ;
+      if (a->zim[v]) continue ;
+
+      a->z[u] = v;
+      a->zm[u] = 1;
+      a->zi[v] = u;
+      a->zim[v] = 1;
+
+      stack_push(&uvstack, u);
+    }
 
     /* propagate all */
     n = prop_az
@@ -833,7 +865,7 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
     }
 
     /* find hypothesis for z[x + 1] */
-    solve_z_rec(a, x + 1, solve_n + n + 1);
+    solve_z_rec(a, x + 1, solve_n + stack_occupancy(&uvstack) + n + 1);
 
   invalid_hypothesis:
     /* undo propagate */
@@ -846,6 +878,15 @@ static void solve_z_rec(solve_arg_t* a, size_t x, size_t solve_n)
      &astack,
      &zstack
     );
+
+    while (stack_occupancy(&uvstack))
+    {
+      size_t u;
+      stack_pop(&uvstack, &u);
+      const size_t v = a->z[u];
+      a->zim[v] = 0;
+      a->zm[u] = 0;
+    }
 
     /* undo before breaking */
     a->zm[x] = 0;
