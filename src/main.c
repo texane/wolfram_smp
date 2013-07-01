@@ -332,7 +332,6 @@ static size_t prop_az
 	zi[a[jzi]] = aji;
 	zim[a[jzi]] = 1;
 	++nz;
-
 	stack_push(zstack, aji);
       }
       else if (am[jzi] == 0)
@@ -342,7 +341,6 @@ static size_t prop_az
 	/* aj[z[i]] unknown */
 	a[jzi] = z[aji];
 	am[jzi] = 1;
-
 	stack_push(astack, jzi);
       }
     }
@@ -733,7 +731,7 @@ static void solve_az_rec(solve_arg_t* a, size_t x, size_t zn)
     }
     printf("\n");
 
-    getchar();
+    /* getchar(); */
 #endif
   }
 
@@ -821,7 +819,6 @@ static void solve_az_rec(solve_arg_t* a, size_t x, size_t zn)
 
     /* assume z[u] = v */
     stack_init(&uvstack);
-#if 0
     for (j = 0; j < a->block_count - 1; ++j)
     {
       const size_t jy = make_index(j, y);
@@ -843,7 +840,6 @@ static void solve_az_rec(solve_arg_t* a, size_t x, size_t zn)
 
       stack_push(&uvstack, u);
     }
-#endif
 
     /* propagate all */
     n = prop_az
@@ -1033,7 +1029,117 @@ static void recover_az
 }
 
 
-/* memory mapped file */
+typedef struct solve_r
+{
+  const uint8_t* z;
+  const uint8_t* zm;
+  const uint8_t* zi;
+  const uint8_t* zim;
+  uint8_t* r;
+  uint8_t rm[block_size];
+  uint8_t* ri;
+  uint8_t rim[block_size];
+} solve_r_t;
+
+static int solve_r_rec(solve_r_t* s, size_t i)
+{
+  /* section 4: z[i] = r^-1[r[i] + k] */
+  /* thus: r[z[i]] = r[i] + k */
+  /* suppose: r[z[i]] = x */
+  /* then: r[i] = x - k */
+  /* k is arbitrarly set to 1 */
+
+  /* return 0 if r solved, -1 otherwise */
+
+  /* assume z, zi fully known */
+
+  static const int k = 1;
+
+  /* r solved */
+  if (i == block_size) return 0;
+
+  if (s->rm[s->z[i]]) return solve_r_rec(s, i + 1);
+
+  size_t x;
+  for (x = 0; x < block_size; ++x)
+  {
+    /* x already used */
+    if (s->rim[x]) continue ;
+
+    /* invalid */
+    if (s->r[i] != mod((int)x - k)) continue ;
+
+    /* suppose r[z[i]] = x */
+    s->r[s->z[i]] = x;
+    s->rm[s->z[i]] = 1;
+    s->ri[x] = s->z[i];
+    s->rim[x] = 1;
+
+    /* r solved */
+    if (solve_r_rec(s, i + 1) == 0) return 0;
+
+    s->rm[s->z[i]] = 0;
+    s->rim[x] = 1;
+  }
+
+  /* could not solve */
+  return -1;
+}
+
+static int solve_r
+(
+ const uint8_t* z, const uint8_t* zm,
+ const uint8_t* zi, const uint8_t* zim,
+ uint8_t* r, uint8_t* ri
+)
+{
+  solve_r_t s;
+
+  s.z = z;
+  s.zm = zm;
+  s.zi = zi;
+  s.zim = zim;
+  s.r = r;
+
+  memset(s.rm, 0, sizeof(s.rm));
+  s.ri = ri;
+  memset(s.ri, 0, sizeof(s.ri));
+  memset(s.rim, 0, sizeof(s.rim));
+
+  return solve_rec(&s, 0);
+}
+
+static void solve_s
+(
+ const uint8_t* a, const uint8_t* am,
+ size_t block_count,
+ const uint8_t* r, const uint8_t* ri,
+ uint8_t* s
+)
+{
+  /* assume r known */
+
+  size_t i;
+  size_t j;
+
+  uint8_t sm[block_size];
+
+  memset(sm, 0, sizeof(sm));
+
+  for (j = 0; j < block_count; ++j)
+  {
+    for (i = 0; i < block_size; ++i)
+    {
+      if (sm[i]) continue ;
+
+      const size_t jri = make_index(j, ri[i]);
+      if (am[jri] == 0) continue ;
+      sm[i] = r[a[jri]];
+    }
+  }
+}
+
+/* MEMORY mapped file */
 
 typedef struct mapped_file
 {
