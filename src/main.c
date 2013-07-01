@@ -961,7 +961,8 @@ static void recover_az
 (
  const uint8_t* c, const uint8_t* p, const uint8_t* pm, size_t n,
  uint8_t* az, uint8_t* azm,
- uint8_t* z, uint8_t* zm
+ uint8_t* z, uint8_t* zm,
+ uint8_t* zi, uint8_t* zim
 )
 {
   /* c the cipher text */
@@ -984,8 +985,6 @@ static void recover_az
   uint8_t* trans_p;
 
   size_t x;
-  uint8_t zim[block_size];
-  uint8_t zi[block_size];
 
   /* compute a */
   a = malloc(block_count * block_size);
@@ -1106,7 +1105,7 @@ static int solve_r
   memset(s.ri, 0, sizeof(s.ri));
   memset(s.rim, 0, sizeof(s.rim));
 
-  return solve_rec(&s, 0);
+  return solve_r_rec(&s, 0);
 }
 
 static void solve_s
@@ -1136,6 +1135,24 @@ static void solve_s
       if (am[jri] == 0) continue ;
       sm[i] = r[a[jri]];
     }
+  }
+}
+
+static void transform_rs
+(
+ uint8_t* p, uint8_t* pm, const uint8_t* c,
+ size_t n,
+ const uint8_t* r, const uint8_t* ri, const uint8_t* s
+)
+{
+  size_t ij;
+
+  for (ij = 0; ij < n; ++ij)
+  {
+    const int i = (int)ij % block_size;
+    const int j = (int)ij / block_size;
+    p[ij] = mod((int)ri[mod((int)s[mod((int)r[mod((int)c[ij] + i)] + j)] - j)] - i);
+    pm[ij] = 1;
   }
 }
 
@@ -1302,6 +1319,11 @@ int main(int ac, char** av)
   uint8_t am[block_size];
   uint8_t z[block_size];
   uint8_t zm[block_size];
+  uint8_t zim[block_size];
+  uint8_t zi[block_size];
+  uint8_t r[block_size];
+  uint8_t ri[block_size];
+  uint8_t s[block_size];
 
   uint8_t* p;
   uint8_t* pm;
@@ -1351,13 +1373,20 @@ int main(int ac, char** av)
   /* catch sigint */
   signal(SIGINT, on_sigint);
 
-  /* recover a, z */
-  recover_az(cipher_mf.base, plain_mf.base, pm, n, a, am, z, zm);
-
   /* decrypt cipher text */
   p = malloc(cipher_mf.size);
   memset(p, 0, cipher_mf.size);
+
+  /* recover a, z */
+  recover_az(cipher_mf.base, plain_mf.base, pm, n, a, am, z, zm, zi, zim);
+
+#if 0 /* use r,s */
+  solve_r(z, zm, zi, zim, r, ri);
+  solve_s(a, am, n / block_size, r, ri, s);
+  transform_rs(p, pm, cipher_mf.base, cipher_mf.size, r, ri, s);
+#else /* use a, z */
   transform2(p, pm, cipher_mf.base, cipher_mf.size, a, am, z, zm);
+#endif
 
   for (i = 0; i < cipher_mf.size; ++i)
   {
