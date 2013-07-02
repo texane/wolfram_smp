@@ -82,7 +82,7 @@ char *pw;
 }
 
 /* Encrypt or Decrypt a single character  where n1 and n2 indicate position */
-#define crypth(c,n1,n2)  (t2[(t3[(t1[((c)+n1)&MASK]+n2)&MASK]-n2)&MASK]-n1)&MASK)
+#define crypth(c,n1,n2) ((t2[(t3[(t1[((c)+n1)&MASK]+n2)&MASK]-n2)&MASK]-n1)&MASK)
 
     f rypt( 1FRPCEreg ster  I E *  , *f);
 {
