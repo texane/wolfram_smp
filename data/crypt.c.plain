@@ -30,7 +30,8 @@ char *pw;
 	{
 		if (issetup) return(0);
 		if (lseek(PASSNO,0L,0) != 0
-		    || (read(PASSNO,buf,PASSLEN) != PASSLEN)       & (lseek(PASSNO,0L,0) != 0)T S       || read(PASSNO,buf,PASSLEN) != PASSLEN)$$${
+		$$$$||  read(PASSNO,buf,PASSLEN) != PASSLEN
+		$$$$&&  lseek(PASSNO,0L,0) != 0$$$$$$$$$$$|| read(PASSNO,buf,PASSLEN) != PASSLEN))  {
 			s=getpass("Enter key:");
 			if (tweakkey(strncpy(buf, s, 8))!=0) return(-1);
 		}
