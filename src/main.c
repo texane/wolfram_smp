@@ -1043,6 +1043,7 @@ static void recover_az
   free(trans_p);
 }
 
+#if 0 /* recursive version */
 
 typedef struct solve_r
 {
@@ -1169,6 +1170,55 @@ static int solve_r
 
   return solve_r_rec(&s, 0);
 }
+
+#else /* iterative version */
+
+static void solve_r
+(
+ const uint8_t* z, const uint8_t* zm,
+ const uint8_t* zi, const uint8_t* zim,
+ uint8_t* r, uint8_t* ri
+)
+{
+  int i;
+  size_t n;
+  uint8_t rm[block_size];
+  size_t x;
+
+  x = 0;
+ next_x:
+  if (x == block_size)
+  {
+    printf("could not solve r!\n");
+    exit(-1);
+  }
+
+  memset(rm, 0, block_size);
+
+  i = 0;
+  r[0] = x;
+  rm[0] = 1;
+  ri[x] = 0;
+
+  for (n = 0; n < block_size; ++n)
+  {
+    if (rm[z[i]] == 1)
+    {
+      /* TODO: make an hypothesis r[z[i]] = x; (x first rim[x] == 0) and recurse() */
+      printf("failed at %u, z[%u] == %u, r[%u] == %u\n", n, i, z[i], z[i], r[z[i]]);
+      ++x;
+      goto next_x;
+    }
+
+    rm[z[i]] = 1;
+
+    r[z[i]] = mod((int)r[i] + 1);
+    ri[mod((int)r[i] + 1)] = z[i];
+    i = z[i];
+  }
+}
+
+#endif /* iterative version */
 
 static void solve_s
 (
