@@ -1060,8 +1060,9 @@ static int solve_r_rec(solve_r_t* s, size_t i)
 {
   /* section 4: z[i] = r^-1[r[i] + k] */
   /* thus: r[z[i]] = r[i] + k */
-  /* suppose: r[z[i]] = x */
-  /* then: r[i] = x - k */
+  /* thus: r[i] = r[z[i]] - k */
+  /* suppose: r[i] = x */
+  /* then: r[z[i]] must equal x + k */
   /* k is arbitrarly set to 1 */
 
   /* return 0 if r solved, -1 otherwise */
@@ -1073,28 +1074,73 @@ static int solve_r_rec(solve_r_t* s, size_t i)
   /* r solved */
   if (i == block_size) return 0;
 
-  if (s->rm[s->z[i]]) return solve_r_rec(s, i + 1);
+  /* r[i] already known */
+  if (s->rm[i])
+  {
+    const int x = s->r[i];
+    if (s->rm[s->z[i]])
+    {
+      if (s->r[s->z[i]] != mod(x + k)) return -1;
+      return solve_r_rec(s, i + 1);
+    }
+    /* else, r[z[i]] unknown */
 
-  size_t x;
-  for (x = 0; x < block_size; ++x)
+    s->r[s->z[i]] = mod(x + k);
+    s->rm[s->z[i]] = 1;
+    s->ri[mod(x + k)] = s->z[i];
+    s->rim[mod(x + k)] = 1;
+
+    if (solve_r_rec(s, i + 1) == 0) return 0;
+
+    s->rm[s->z[i]] = 0;
+    s->rim[mod(x + k)] = 0;
+
+    return -1;
+  }
+
+  /* try all unused x */
+  int x;
+  for (x = 0; x < (int)block_size; ++x)
   {
     /* x already used */
     if (s->rim[x]) continue ;
 
-    /* invalid */
-    if (s->rm[i] && (s->r[i] != mod((int)x - k))) continue ;
+    unsigned int must_undo = 0;
 
-    /* suppose r[z[i]] = x */
-    s->r[s->z[i]] = x;
-    s->rm[s->z[i]] = 1;
-    s->ri[x] = s->z[i];
-    s->rim[x] = 1;
+    if (s->rm[s->z[i]])
+    {
+      /* would be invalid */
+      if (s->r[s->z[i]] != mod(x - k)) continue ;
+    }
+    else /* s->rm[s->z[i]] == 0 */
+    {
+      /* suppose r[z[i]] = x + k */
+      const int xk = mod(x + k);
+      s->r[s->z[i]] = xk;
+      s->rm[s->z[i]] = 1;
+      s->ri[xk] = s->z[i];
+      s->rim[xk] = 1;
+      must_undo = 1;
+    }
+
+    /* suppose r[i] = r[z[i]] - k */
+    const size_t rzik = mod((int)s->r[s->z[i]] - k);
+    s->r[i] = rzik;
+    s->rm[i] = 1;
+    s->ri[rzik] = i;
+    s->rim[rzik] = 1;
 
     /* r solved */
     if (solve_r_rec(s, i + 1) == 0) return 0;
 
-    s->rm[s->z[i]] = 0;
-    s->rim[x] = 0;
+    s->rm[i] = 0;
+    s->rim[rzik] = 0;
+
+    if (must_undo)
+    {
+      s->rm[s->z[i]] = 0;
+      s->rim[mod(x + k)] = 0;
+    }
   }
 
   /* could not solve */
