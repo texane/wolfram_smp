@@ -1043,135 +1043,73 @@ static void recover_az
   free(trans_p);
 }
 
-#if 0 /* recursive version */
 
-typedef struct solve_r
-{
-  const uint8_t* z;
-  const uint8_t* zm;
-  const uint8_t* zi;
-  const uint8_t* zim;
-  uint8_t* r;
-  uint8_t rm[block_size];
-  uint8_t* ri;
-  uint8_t rim[block_size];
-} solve_r_t;
-
-static int solve_r_rec(solve_r_t* s, size_t i)
-{
-  /* section 4: z[i] = r^-1[r[i] + k] */
-  /* thus: r[z[i]] = r[i] + k */
-  /* thus: r[i] = r[z[i]] - k */
-  /* suppose: r[i] = x */
-  /* then: r[z[i]] must equal x + k */
-  /* k is arbitrarly set to 1 */
-
-  /* return 0 if r solved, -1 otherwise */
-
-  /* assume z, zi fully known */
-
-  static const int k = 1;
-
-  /* r solved */
-  if (i == block_size) return 0;
-
-  /* r[i] already known */
-  if (s->rm[i])
-  {
-    const int x = s->r[i];
-    if (s->rm[s->z[i]])
-    {
-      if (s->r[s->z[i]] != mod(x + k)) return -1;
-      return solve_r_rec(s, i + 1);
-    }
-    /* else, r[z[i]] unknown */
-
-    s->r[s->z[i]] = mod(x + k);
-    s->rm[s->z[i]] = 1;
-    s->ri[mod(x + k)] = s->z[i];
-    s->rim[mod(x + k)] = 1;
-
-    if (solve_r_rec(s, i + 1) == 0) return 0;
-
-    s->rm[s->z[i]] = 0;
-    s->rim[mod(x + k)] = 0;
-
-    return -1;
-  }
-
-  /* try all unused x */
-  int x;
-  for (x = 0; x < (int)block_size; ++x)
-  {
-    /* x already used */
-    if (s->rim[x]) continue ;
-
-    unsigned int must_undo = 0;
-
-    if (s->rm[s->z[i]])
-    {
-      /* would be invalid */
-      if (s->r[s->z[i]] != mod(x - k)) continue ;
-    }
-    else /* s->rm[s->z[i]] == 0 */
-    {
-      /* suppose r[z[i]] = x + k */
-      const int xk = mod(x + k);
-      s->r[s->z[i]] = xk;
-      s->rm[s->z[i]] = 1;
-      s->ri[xk] = s->z[i];
-      s->rim[xk] = 1;
-      must_undo = 1;
-    }
-
-    /* suppose r[i] = r[z[i]] - k */
-    const size_t rzik = mod((int)s->r[s->z[i]] - k);
-    s->r[i] = rzik;
-    s->rm[i] = 1;
-    s->ri[rzik] = i;
-    s->rim[rzik] = 1;
-
-    /* r solved */
-    if (solve_r_rec(s, i + 1) == 0) return 0;
-
-    s->rm[i] = 0;
-    s->rim[rzik] = 0;
-
-    if (must_undo)
-    {
-      s->rm[s->z[i]] = 0;
-      s->rim[mod(x + k)] = 0;
-    }
-  }
-
-  /* could not solve */
-  return -1;
-}
-
-static int solve_r
+static int solve_r_rec
 (
  const uint8_t* z, const uint8_t* zm,
  const uint8_t* zi, const uint8_t* zim,
- uint8_t* r, uint8_t* ri
+ uint8_t* r, uint8_t* rm,
+ uint8_t* ri, uint8_t* rim,
+ size_t i, size_t nr
 )
 {
-  solve_r_t s;
+  stack_t rstack;
+  size_t x;
 
-  s.z = z;
-  s.zm = zm;
-  s.zi = zi;
-  s.zim = zim;
+  if (nr == block_size) return 1;
 
-  s.r = r;
-  memset(s.rm, 0, block_size);
+  stack_init(&rstack);
 
-  s.ri = ri;
-  memset(s.rim, 0, block_size);
+  for (x = 0; x < block_size; ++x)
+  {
+    if (rim[x]) continue ;
 
-  return solve_r_rec(&s, 0);
+    r[i] = x;
+    rm[i] = 1;
+    ri[x] = i;
+    rim[x] = 1;
+
+    size_t n;
+    for (n = nr + 1; n < block_size; ++n)
+    {
+      if (rm[z[i]] == 1)
+      {
+	/* recurse */
+	if (solve_r_rec(z, zm, zi, zim, r, rm, ri, rim, i, n) == 0)
+	  return 0;
+
+	/* TODO: undo what has been done during this iteration */
+
+	break ;
+      }
+
+      r[z[i]] = mod((int)r[i] + 1);
+      rm[z[i]] = 1;
+      ri[r[z[i]]] = z[i];
+      rim[r[z[i]]] = 1;
+      stack_push(&rstack, z[i]);
+
+      i = z[i];
+    }
+
+    /* success */
+    if (n == block_size) return 0;
+
+    /* failed, undo */
+
+    while (stack_occupancy(&rstack))
+    {
+      size_t zi;
+      stack_pop(&rstack, &zi);
+      rim[r[zi]] = 0;
+      rm[zi] = 0;
+    }
+
+    rm[i] = 0;
+  }
+
+  return -1;
 }
-
-#else /* iterative version */
 
 static void solve_r
 (
@@ -1180,45 +1118,14 @@ static void solve_r
  uint8_t* r, uint8_t* ri
 )
 {
-  int i;
-  size_t n;
   uint8_t rm[block_size];
-  size_t x;
-
-  x = 0;
- next_x:
-  if (x == block_size)
-  {
-    printf("could not solve r!\n");
-    exit(-1);
-  }
+  uint8_t rim[block_size];
 
   memset(rm, 0, block_size);
+  memset(rim, 0, block_size);
 
-  i = 0;
-  r[0] = x;
-  rm[0] = 1;
-  ri[x] = 0;
-
-  for (n = 0; n < block_size; ++n)
-  {
-    if (rm[z[i]] == 1)
-    {
-      /* TODO: make an hypothesis r[z[i]] = x; (x first rim[x] == 0) and recurse() */
-      printf("failed at %u, z[%u] == %u, r[%u] == %u\n", n, i, z[i], z[i], r[z[i]]);
-      ++x;
-      goto next_x;
-    }
-
-    rm[z[i]] = 1;
-
-    r[z[i]] = mod((int)r[i] + 1);
-    ri[mod((int)r[i] + 1)] = z[i];
-    i = z[i];
-  }
+  solve_r_rec(z, zm, zi, zim, r, rm, ri, rim, 0, 0);
 }
-
-#endif /* iterative version */
 
 static void solve_s
 (
