@@ -657,8 +657,8 @@ typedef struct solve_arg
   uint8_t* zim;
 
   size_t best_zn;
-  uint8_t best_az[block_size];
-  uint8_t best_azm[block_size];
+  uint8_t best_a[BLOCK_COUNT * block_size];
+  uint8_t best_am[BLOCK_COUNT * block_size];
   uint8_t best_z[block_size];
   uint8_t best_zm[block_size];
   uint8_t best_zi[block_size];
@@ -693,8 +693,8 @@ static void solve_az_rec(solve_arg_t* a, size_t x, size_t zn)
       a->best_zn = zn;
 
       /* copy only a_0 */
-      memcpy(a->best_az, a->a, block_size);
-      memcpy(a->best_azm, a->am, block_size);
+      memcpy(a->best_a, a->a, BLOCK_COUNT * block_size);
+      memcpy(a->best_am, a->am, BLOCK_COUNT * block_size);
 
       memcpy(a->best_z, a->z, block_size);
       memcpy(a->best_zm, a->zm, block_size);
@@ -702,7 +702,7 @@ static void solve_az_rec(solve_arg_t* a, size_t x, size_t zn)
       memcpy(a->best_zim, a->zim, block_size);
     }
 
-#if 1 /* debug */
+#if 0 /* debug */
     printf("FOUND: %u\n", count);
 
     /* transform_and_print(a->c, a->a, a->am, a->z, a->zm); */
@@ -917,7 +917,6 @@ static size_t solve_az
 (
  const uint8_t* c, const uint8_t* p, const uint8_t* pm,
  uint8_t* a, uint8_t* am,
- uint8_t* az, uint8_t* azm,
  size_t block_count,
  uint8_t* z, uint8_t* zm,
  uint8_t* zi, uint8_t* zim
@@ -941,32 +940,32 @@ static size_t solve_az
   arg.zim = zim;
 
   arg.best_zn = 0;
-  memset(arg.best_azm, 0, block_size);
+  memset(arg.best_am, 0, BLOCK_COUNT * block_size);
   memset(arg.best_zm, 0, block_size);
   memset(arg.best_zim, 0, block_size);
 
   solve_az_rec(&arg, 0, 0);
 
-  memcpy(az, arg.best_az, block_size);
-  memcpy(azm, arg.best_azm, block_size);
+  memcpy(a, arg.best_a, BLOCK_COUNT * block_size);
+  memcpy(am, arg.best_am, BLOCK_COUNT * block_size);
   memcpy(z, arg.best_z, block_size);
   memcpy(zm, arg.best_zm, block_size);
   memcpy(zi, arg.best_zi, block_size);
   memcpy(zim, arg.best_zim, block_size);
 
   /* stats */
-  size_t naz = 0;
+  size_t na = 0;
   size_t nz = 0;
   size_t nzi = 0;
   size_t i;
   for (i = 0; i < block_size; ++i)
   {
-    if (azm[i]) ++naz;
+    if (am[i]) ++na;
     if (zm[i]) ++nz;
     if (zim[i]) ++nzi;
   }
-  printf("solve_az_rec: best_zn == %u, naz == %u, nz == %u, nzi == %u\n",
-	 arg.best_zn, naz, nz, nzi);
+  printf("solve_az_rec: best_zn == %u, na == %u, nz == %u, nzi == %u\n",
+	 arg.best_zn, na, nz, nzi);
 
   return arg.best_zn;
 }
@@ -974,7 +973,7 @@ static size_t solve_az
 static void recover_az
 (
  const uint8_t* c, const uint8_t* p, const uint8_t* pm, size_t n,
- uint8_t* az, uint8_t* azm,
+ uint8_t* a, uint8_t* am,
  uint8_t* z, uint8_t* zm,
  uint8_t* zi, uint8_t* zim
 )
@@ -983,26 +982,23 @@ static void recover_az
   /* p the plain text */
   /* pm the plain validity map */
   /* n the cipher and plain text sizes */
-  /* az the a_0 permutation */
-  /* azm the az validity map */
+  /* a the a permutation */
+  /* am the a validity map */
   /* z the zee permutation */
   /* zm the zee validity map */
 
   const size_t block_count = n / block_size;
 
-  uint8_t* a;
-  uint8_t* am;
-
+  size_t i;
   size_t j;
+  size_t x;
+
+  stack_t s;
 
   uint8_t* trans_pm;
   uint8_t* trans_p;
 
-  size_t x;
-
   /* compute a */
-  a = malloc(block_count * block_size);
-  am = malloc(block_count * block_size);
   compute_a(a, am, c, p, pm, block_count);
   check_a(a, am, c, p, pm, n);
 
@@ -1025,14 +1021,13 @@ static void recover_az
   trans_p = malloc(n);
 
   /* solve az */
-  solve_az(c, p, pm, a, am, az, azm, block_count, z, zm, zi, zim);
+  solve_az(c, p, pm, a, am, block_count, z, zm, zi, zim);
 
-  size_t i;
+  /* find z[i] = x which maximises decrypted count */
+#if 0
   for (i = 0; i < block_size; ++i)
   {
     if (zm[i]) continue ;
-
-    /* find z[i] = x which maximises decrypted count */
 
     size_t best_x = 0;
     size_t best_n = 0;
@@ -1054,7 +1049,7 @@ static void recover_az
       stack_init(&astack);
       stack_init(&zstack);
       n = prop_az(a, am, z, zm, zi, zim, block_count, &astack, &zstack);
-      /* if (n != (size_t)-1) */
+      if (n != (size_t)-1)
       {
 	n = transform_and_count(c, p, pm, a, am, z, zm, zi, zim);
 	if (n > best_n)
@@ -1079,8 +1074,34 @@ static void recover_az
     zi[best_x] = i;
     zim[best_x] = 1;
   }
+  /* stack_init(&s); */
+  /* prop_az(a, am, z, zm, zi, zim, block_count, &s, &s); */
+#endif
 
-#if 0 /* test, to remove */
+
+#if 0
+  /* fill a with unused values */
+  for (j = 0; j < block_count; ++j)
+  {
+    uint8_t aim[block_size];
+    memset(aim, 0, block_size);
+    for (i = 0; i < block_size; ++i)
+    {
+      if (am[j * block_size + i] == 0) continue ;
+      aim[a[j * block_size + i]] = 1;
+    }
+
+    for (x = 0, i = 0; i < block_size; ++i)
+    {
+      if (am[j * block_size + i]) continue ;
+      for (; aim[x]; ++x) ;
+      a[j * block_size + i] = (x++);
+      am[j * block_size + i] = 1;
+    }
+  }
+#endif
+
+#if 1
   /* fill missing z with unused values and propagate. */
   /* obviously invalid, but could lead to some results */
   for (x = 0, i = 0; i < block_size; ++i)
@@ -1096,12 +1117,22 @@ static void recover_az
     ++x;
   }
 
-  stack_t s;
   stack_init(&s);
   prop_az(a, am, z, zm, zi, zim, block_count, &s, &s);
 #endif
 
-#if 1
+#if 0
+  /* print a, z, plain */
+  printf("-- a =\n");
+  for (j = 0; j < block_size; ++j)
+  {
+    if (j && (j % 8 == 0)) printf("\n");
+    if (am[j]) printf(" 0x%02x", a[j]);
+    else printf("     ");
+  }
+  printf("\n");
+
+  printf("-- z =\n");
   for (j = 0; j < block_size; ++j)
   {
     if (j && (j % 8 == 0)) printf("\n");
@@ -1109,12 +1140,10 @@ static void recover_az
     else printf("     ");
   }
   printf("\n");
-  transform_and_print(c, a, am, z, zm);
+
+  /* transform_and_print(c, a, am, z, zm); */
   getchar();
 #endif
-
-  free(a);
-  free(am);
 
   free(trans_pm);
   free(trans_p);
@@ -1155,8 +1184,6 @@ static int solve_r_rec
 	if (solve_r_rec(z, zm, zi, zim, r, rm, ri, rim, i, n) == 0)
 	  return 0;
 
-	/* TODO: undo what has been done during this iteration */
-
 	break ;
       }
 
@@ -1183,6 +1210,7 @@ static int solve_r_rec
     }
 
     rm[i] = 0;
+    rim[x] = 0;
   }
 
   return -1;
@@ -1202,6 +1230,13 @@ static void solve_r
   memset(rim, 0, block_size);
 
   solve_r_rec(z, zm, zi, zim, r, rm, ri, rim, 0, 0);
+
+#if 1 /* debug */
+  size_t i;
+  size_t n;
+  for (n = 0, i = 0; i < block_size; ++i) n += rm[i];
+  printf("nr == %u\n", n);
+#endif
 }
 
 static void solve_s
@@ -1235,6 +1270,13 @@ static void solve_s
       sm[i] = 1;
     }
   }
+
+#if 0 /* debug */
+  size_t n;
+  for (n = 0, i = 0; i < block_size; ++i) n += sm[i];
+  printf("ns == %u\n", n);
+  getchar();
+#endif
 }
 
 static void transform_rs
@@ -1419,8 +1461,8 @@ int main(int ac, char** av)
   mapped_file_t plain_mf = MAPPED_FILE_INITIALIZER;
   mapped_file_t map_mf = MAPPED_FILE_INITIALIZER;
 
-  uint8_t a[block_size];
-  uint8_t am[block_size];
+  uint8_t a[BLOCK_COUNT * block_size];
+  uint8_t am[BLOCK_COUNT * block_size];
   uint8_t z[block_size];
   uint8_t zm[block_size];
   uint8_t zim[block_size];
@@ -1484,12 +1526,17 @@ int main(int ac, char** av)
   /* recover a, z */
   recover_az(cipher_mf.base, plain_mf.base, pm, n, a, am, z, zm, zi, zim);
 
-#if 1 /* use r,s */
   solve_r(z, zm, zi, zim, r, ri);
   solve_s(a, am, n / block_size, r, ri, s);
+#if 0 /* use cypher */
+  mapped_file_t cypher_mf;
+  uint8_t cypher_buf[block_size];
+  map_file(&cipher_mf, "../data/cypher.c.cipher");
+  memcpy(cypher_buf, cypher_mf.base, cypher_mf.size);
+  unmap_file(&cypher_mf);
+  ntransform_rs(p, pm, cypher_buf, block_size, r, ri, s);
+#else
   transform_rs(p, pm, cipher_mf.base, cipher_mf.size, r, ri, s);
-#else /* use a, z */
-  transform2(p, pm, cipher_mf.base, cipher_mf.size, a, am, z, zm);
 #endif
 
   for (i = 0; i < cipher_mf.size; ++i)
