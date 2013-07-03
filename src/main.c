@@ -281,9 +281,6 @@ static size_t prop_az
   size_t i;
   size_t j;
 
-  stack_init(astack);
-  stack_init(zstack);
-
   nz = 0;
 
   for (j = 0; j < block_count - 1; ++j)
@@ -710,7 +707,7 @@ static void solve_az_rec(solve_arg_t* a, size_t x, size_t zn)
 
     /* transform_and_print(a->c, a->a, a->am, a->z, a->zm); */
 
-    for (j = 0; j < block_size; ++j) n += a->am[j];
+    for (j = 0, n = 0; j < block_size; ++j) n += a->am[j];
     printf("best_zn == %u, best_a == %u\n", a->best_zn, n);
 
     printf("a == \n");
@@ -817,8 +814,16 @@ static void solve_az_rec(solve_arg_t* a, size_t x, size_t zn)
     a->zi[y] = x;
     a->zim[y] = 1;
 
-    /* assume z[u] = v */
+    stack_init(&astack);
+    stack_init(&zstack);
     stack_init(&uvstack);
+
+    unsigned int has_changed;
+
+  redo_prop:
+    has_changed = 0;
+
+    /* assume z[u] = v */
     for (j = 0; j < a->block_count - 1; ++j)
     {
       const size_t jy = make_index(j, y);
@@ -839,9 +844,13 @@ static void solve_az_rec(solve_arg_t* a, size_t x, size_t zn)
       a->zim[v] = 1;
 
       stack_push(&uvstack, u);
+
+      has_changed = 1;
     }
 
     /* propagate all */
+    const size_t prev_an = stack_occupancy(&astack);
+    const size_t prev_zn = stack_occupancy(&zstack);
     n = prop_az
     (
      a->a, a->am,
@@ -856,6 +865,11 @@ static void solve_az_rec(solve_arg_t* a, size_t x, size_t zn)
     {
       goto invalid_hypothesis;
     }
+
+    if (prev_an != stack_occupancy(&astack)) has_changed = 1;
+    if (prev_zn != stack_occupancy(&zstack)) has_changed = 1;
+
+    /* if (has_changed) goto redo_prop; */
 
     /* find hypothesis for z[x + 1] */
     solve_az_rec(a, x + 1, zn + stack_occupancy(&uvstack) + n + 1);
@@ -995,9 +1009,14 @@ static void recover_az
 #if 0 /* debug */
   {
     size_t i;
-    size_t n = 0;
-    for (i = 0; i < block_size; ++i) n += am[i];
-    printf("card(a0) == %u\n", n);
+    for (j = 0; j < block_count; ++j)
+    {
+      size_t n = 0;
+      for (i = 0; i < block_size; ++i)
+	n += am[j * block_size + i];
+      printf("card(a%u) == %u\n", j, n);
+    }
+    getchar();
   }
 #endif
 
@@ -1008,23 +1027,81 @@ static void recover_az
   /* solve az */
   solve_az(c, p, pm, a, am, az, azm, block_count, z, zm, zi, zim);
 
-  /* fill missing z with unused values */
   size_t i;
-  for (x = 0, i = 0; i < block_size; ++i)
+  for (i = 0; i < block_size; ++i)
   {
-    if (zm[i] == 0)
+    if (zm[i]) continue ;
+
+    /* find z[i] = x which maximises decrypted count */
+
+    size_t best_x = 0;
+    size_t best_n = 0;
+
+    for (x = 0; x < block_size; ++x)
     {
-      for (; zim[x]; ++x) ;
+      if (zim[x]) continue ;
+
+      if (best_n == 0) best_x = x;
 
       z[i] = x;
       zm[i] = 1;
       zi[x] = i;
       zim[x] = 1;
-      ++x;
+
+      stack_t astack;
+      stack_t zstack;
+      size_t n;
+      stack_init(&astack);
+      stack_init(&zstack);
+      n = prop_az(a, am, z, zm, zi, zim, block_count, &astack, &zstack);
+      /* if (n != (size_t)-1) */
+      {
+	n = transform_and_count(c, p, pm, a, am, z, zm, zi, zim);
+	if (n > best_n)
+	{
+	  printf("FOUND NEW: %u\n", n);
+	  best_n = n;
+	  best_x = x;
+	}
+
+	unprop_az(a, am, z, zm, zi, zim, block_count, &astack, &zstack);
+      }
+
+      zm[i] = 0;
+      zim[x] = 0;
     }
+
+    if (best_n == 0) continue;
+
+    /* assign z[i] = x */
+    z[i] = best_x;
+    zm[i] = 1;
+    zi[best_x] = i;
+    zim[best_x] = 1;
   }
 
-#if 0
+#if 0 /* test, to remove */
+  /* fill missing z with unused values and propagate. */
+  /* obviously invalid, but could lead to some results */
+  for (x = 0, i = 0; i < block_size; ++i)
+  {
+    if (zm[i] == 1) continue ;
+
+    for (; zim[x]; ++x) ;
+
+    z[i] = x;
+    zm[i] = 1;
+    zi[x] = i;
+    zim[x] = 1;
+    ++x;
+  }
+
+  stack_t s;
+  stack_init(&s);
+  prop_az(a, am, z, zm, zi, zim, block_count, &s, &s);
+#endif
+
+#if 1
   for (j = 0; j < block_size; ++j)
   {
     if (j && (j % 8 == 0)) printf("\n");
@@ -1325,6 +1402,11 @@ static void transform2
 
 /* main */
 
+static char to_printable(uint8_t x) 
+{
+  return ((x == '\n') || (x == '\t') || ((x >= ' ') && (x <= 127))) ? x : ' ';
+}
+
 int main(int ac, char** av)
 {
   /* usage: a.out cipher_path plain_path map_path */
@@ -1413,7 +1495,7 @@ int main(int ac, char** av)
   for (i = 0; i < cipher_mf.size; ++i)
   {
     if (pm[i] == 0) printf(" ");
-    else printf("%c", p[i]);
+    else printf("%c", to_printable(p[i]));
   }
 
   printf("\n");
